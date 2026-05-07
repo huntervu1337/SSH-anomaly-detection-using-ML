@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Data
+# Bỏ qua dữ liệu thực tế (để tránh push file quá nặng hoặc nhạy cảm lên Git)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.csv
+*.log
+*.txt
+*.parquet
+*.db
+*.sqlite
+
+# Models
+# Bỏ qua các file mô hình Machine Learning đã train (thường có kích thước lớn)
+models/*
+!models/.gitkeep
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.onnx
+
+# IDE and OS settings
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
