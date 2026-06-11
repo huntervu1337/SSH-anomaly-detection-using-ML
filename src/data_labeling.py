@@ -86,7 +86,7 @@ def aggregate_session(session_records: List[Dict[str, object]]) -> Dict[str, obj
 	total_attempts = len(session_records)
 	ts_first = int(session_records[0]["ts"])
 	ts_last = int(session_records[-1]["ts"])
-	session_duration = ts_last - ts_first
+	session_duration = max(0, ts_last - ts_first)
 	attempts_per_second = total_attempts / (session_duration + 1)
 	is_single_event = 1 if total_attempts == 1 else 0
 
