@@ -1,0 +1,4 @@
+early_subtype,expected_final_class,n_sessions,consistency_rate
+BRUTE_FORCE,Brute-force,1039,1.0
+SCAN,Scan,392,0.0
+BREAK_IN_RISK,Break-in,20,0.95

@@ -18,9 +18,7 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
-*.csv
 *.log
-*.txt
 *.parquet
 *.db
 *.sqlite

@@ -1,0 +1,26 @@
+Section,Metric,Value
+Dataset,Total log lines,655147.0
+Dataset,Parsed events,212149.0
+Dataset,Sessions (idle_gap=600s),3916.0
+Dataset,Time span (days),28.0
+Dataset,Unique source IPs,1043.0
+Class distribution,Class 0 (Normal),123.0
+Class distribution,Class 1 (Single failure),2542.0
+Class distribution,Class 2 (Scan),192.0
+Class distribution,Class 3 (Brute-force),1040.0
+Class distribution,Class 4 (Break-in),19.0
+Layer 1 (RandomForest),CV Macro F1 (full features),0.9943496016603064
+Layer 1 (RandomForest),CV Macro F1 (decoupled features),0.9267797105667328
+Layer 1 (RandomForest),Tautology cost,0.06756989109357359
+Layer 1 (RandomForest),Holdout Macro F1 (full),0.9845161290322582
+Layer 1 (RandomForest),Holdout Macro F1 (decoupled),0.87900198342547
+Layer 2 (IsolationForest),Contamination,0.02
+Layer 2 (IsolationForest),False alarm rate (out-of-sample validation),0.0517241379310344
+Layer 2 (IsolationForest),False alarm rate (in-sample calibration),0.016260162601626018
+Layer 2 (IsolationForest),Sessions flagged UNKNOWN_PATTERN,2.0
+Real-time simulation,Total early alerts,1452.0
+Real-time simulation,  - BRUTE_FORCE,1040.0
+Real-time simulation,  - SCAN,392.0
+Real-time simulation,  - BREAK_IN_RISK,20.0
+Real-time simulation,Sessions w/ early alert,1060.0
+Real-time simulation,Avg attempt# at BF alert,6.0

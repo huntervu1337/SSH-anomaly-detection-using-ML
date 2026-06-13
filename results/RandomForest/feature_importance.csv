@@ -1,0 +1,12 @@
+,importance
+invalid_user_attempts,0.21700038116224146
+max_failure_streak,0.21385242777683522
+unique_users_ratio,0.15889827232987713
+failure_ratio,0.15756891384721483
+has_valid_user_attempt,0.1083187319337435
+session_duration,0.07645254716283373
+attempts_per_second,0.035740702757186105
+is_single_event,0.02477050088023211
+has_root_attempt,0.005769250920900186
+has_reverse_mapping_failed,0.001628271228935848
+is_private,0.0

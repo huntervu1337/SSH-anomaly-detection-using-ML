@@ -1,0 +1,14 @@
+Model: RandomForest DECOUPLED features
+CV Macro F1: 0.9268
+
+                precision    recall  f1-score   support
+
+        Normal     0.9744    0.9268    0.9500       123
+Single failure     0.9945    0.9996    0.9971      2542
+          Scan     0.9944    0.9271    0.9596       192
+   Brute-force     1.0000    1.0000    1.0000      1040
+      Break-in     0.6400    0.8421    0.7273        19
+
+      accuracy                         0.9931      3916
+     macro avg     0.9207    0.9391    0.9268      3916
+  weighted avg     0.9936    0.9931    0.9932      3916

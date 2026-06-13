@@ -1,0 +1,14 @@
+Model: RandomForest
+Holdout Macro F1: 0.9845
+
+                precision    recall  f1-score   support
+
+        Normal     1.0000    1.0000    1.0000        58
+Single failure     1.0000    1.0000    1.0000       344
+          Scan     1.0000    0.9787    0.9892        47
+   Brute-force     1.0000    1.0000    1.0000       353
+      Break-in     0.8750    1.0000    0.9333         7
+
+      accuracy                         0.9988       809
+     macro avg     0.9750    0.9957    0.9845       809
+  weighted avg     0.9989    0.9988    0.9988       809

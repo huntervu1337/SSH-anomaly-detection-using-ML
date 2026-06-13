@@ -1,0 +1,6 @@
+Component,Metric,Value,Note
+Layer 1 (RandomForest),CV Macro F1,0.9943496016603064,Known attack classification (class 0-4)
+Layer 2 (IsolationForest),False Alarm Rate,0.0517241379310344,"On Normal sessions, contamination=0.02"
+Hybrid (Final),% KNOWN_ATTACK,0.9685903983656793,3793 sessions
+Hybrid (Final),% NORMAL,0.03089887640449438,121 sessions
+Hybrid (Final),% UNKNOWN_PATTERN,0.0005107252298263534,2 sessions

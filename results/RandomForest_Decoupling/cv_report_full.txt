@@ -1,0 +1,14 @@
+Model: RandomForest FULL features
+CV Macro F1: 0.9943
+
+                precision    recall  f1-score   support
+
+        Normal     1.0000    1.0000    1.0000       123
+Single failure     1.0000    1.0000    1.0000      2542
+          Scan     1.0000    0.9948    0.9974       192
+   Brute-force     1.0000    1.0000    1.0000      1040
+      Break-in     0.9500    1.0000    0.9744        19
+
+      accuracy                         0.9997      3916
+     macro avg     0.9900    0.9990    0.9943      3916
+  weighted avg     0.9998    0.9997    0.9997      3916

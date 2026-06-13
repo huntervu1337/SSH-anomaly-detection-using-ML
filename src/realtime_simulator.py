@@ -19,6 +19,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -347,6 +348,12 @@ def run_simulation(
         )
         alerts.append(final_alert)
 
+    # Save simulation alerts to CSV
+    base_dir = Path(__file__).resolve().parent.parent
+    results_dir = base_dir / "results"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(alerts).to_csv(results_dir / "simulation_alerts.csv", index=False)
+
     if verbose:
         n_early = sum(1 for a in alerts if a["alert_kind"] == "EARLY_ALERT")
         n_final = sum(1 for a in alerts if a["alert_kind"] == "FINAL_CLASSIFICATION")
@@ -356,5 +363,6 @@ def run_simulation(
         print(f"  Alerts total:    {len(alerts)}")
         print(f"    EARLY_ALERT:   {n_early}")
         print(f"    FINAL:         {n_final}")
+        print(f"  Saved to results/simulation_alerts.csv")
 
     return alerts

@@ -1,0 +1,4 @@
+alert_subtype,n_alerts,mean_attempt,median_attempt,min_attempt,max_attempt
+BREAK_IN_RISK,20,2.3,2.0,2.0,5.0
+BRUTE_FORCE,1040,6.0,6.0,6.0,6.0
+SCAN,392,17.24,7.0,5.0,258.0
