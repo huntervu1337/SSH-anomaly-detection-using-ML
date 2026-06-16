@@ -41,6 +41,24 @@ class SSHLogParser:
 		return learned_users
 
 	def _parse_timestamp(self, line: str) -> Optional[int]:
+		# Try ISO/RFC3339 format first if it starts with a year (digit)
+		if line and line[0].isdigit():
+			try:
+				parts = line.split()
+				if parts:
+					ts_str = parts[0]
+					# For older Python versions, fromisoformat might not support timezone colons (e.g. +07:00)
+					if len(ts_str) >= 6 and (ts_str[-3] == ':' or ts_str[-6] == ':'):
+						if '+' in ts_str[-6:] or '-' in ts_str[-6:]:
+							r_index = ts_str.rfind(':')
+							if r_index != -1:
+								ts_str = ts_str[:r_index] + ts_str[r_index+1:]
+					parsed = datetime.fromisoformat(ts_str)
+					return int(parsed.timestamp())
+			except Exception:
+				pass
+
+		# Fallback to classic syslog format (e.g., Dec 10 06:55:46)
 		try:
 			parsed = datetime.strptime(line[0:15], "%b %d %H:%M:%S")
 			# Detect cross-year rollover (e.g., Dec -> Jan)
