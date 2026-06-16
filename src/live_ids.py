@@ -50,6 +50,7 @@ def _can_encode_emojis() -> bool:
         return False
 
 USE_EMOJI = _can_encode_emojis()
+CSV_FH = None
 
 
 # ---- Demo config (different from offline research config) ----
@@ -188,6 +189,8 @@ def emit_alert(alert: dict, console: Console, csv_writer, jsonl_fh, fieldnames):
     """Print alert to console and write to CSV/JSONL."""
     ts_str = datetime.fromtimestamp(alert["ts_alert"]).strftime("%H:%M:%S")
 
+    printed = False
+
     if alert["alert_kind"] == "EARLY_ALERT":
         if USE_EMOJI:
             try:
@@ -196,13 +199,14 @@ def emit_alert(alert: dict, console: Console, csv_writer, jsonl_fh, fieldnames):
                     f"IP={alert['ip']} attempt#{alert['event_index']} — {alert['reason']}",
                     style="bold yellow",
                 )
-                return
+                printed = True
             except Exception:
                 pass
-        print(
-            f"[{ts_str}] [!] EARLY_ALERT [{alert['alert_subtype']}] "
-            f"IP={alert['ip']} attempt#{alert['event_index']} - {alert['reason']}"
-        )
+        if not printed:
+            print(
+                f"[{ts_str}] [!] EARLY_ALERT [{alert['alert_subtype']}] "
+                f"IP={alert['ip']} attempt#{alert['event_index']} - {alert['reason']}"
+            )
     else:
         atype = alert["alert_type"]
         if USE_EMOJI:
@@ -220,24 +224,30 @@ def emit_alert(alert: dict, console: Console, csv_writer, jsonl_fh, fieldnames):
                 )
                 if alert.get("layer1_class") in (3, 4):  # Brute-force or Break-in
                     console.bell()
-                return
+                printed = True
             except Exception:
                 pass
         
-        ascii_icon = {
-            "KNOWN_ATTACK":    "[CRIT]",
-            "UNKNOWN_PATTERN": "[WARN]",
-            "NORMAL":          "[ OK ]",
-        }[atype]
-        print(
-            f"[{ts_str}] {ascii_icon} FINAL [{atype}] {alert['layer1_label']} "
-            f"IP={alert['ip']} attempts={alert['total_attempts']} "
-            f"dur={alert['session_duration']}s IF_score={alert['layer2_score']}"
-        )
+        if not printed:
+            ascii_icon = {
+                "KNOWN_ATTACK":    "[CRIT]",
+                "UNKNOWN_PATTERN": "[WARN]",
+                "NORMAL":          "[ OK ]",
+            }[atype]
+            print(
+                f"[{ts_str}] {ascii_icon} FINAL [{atype}] {alert['layer1_label']} "
+                f"IP={alert['ip']} attempts={alert['total_attempts']} "
+                f"dur={alert['session_duration']}s IF_score={alert['layer2_score']}"
+            )
 
     # Structured logging — for post-analysis / downstream tools
     row = {k: alert.get(k, "") for k in fieldnames}
     csv_writer.writerow(row)
+    if CSV_FH:
+        try:
+            CSV_FH.flush()
+        except Exception:
+            pass
     jsonl_fh.write(json.dumps(alert) + "\n")
     jsonl_fh.flush()
 
@@ -354,7 +364,9 @@ def main():
         "attempts_so_far", "failures_so_far", "reason", "event_index",
     ]
 
+    global CSV_FH
     csv_fh = open(OUT_CSV, "w", newline="")
+    CSV_FH = csv_fh
     csv_writer = csv.DictWriter(csv_fh, fieldnames=fieldnames)
     csv_writer.writeheader()
     jsonl_fh = open(OUT_JSONL, "w")
