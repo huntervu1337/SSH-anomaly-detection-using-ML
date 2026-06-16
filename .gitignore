@@ -14,21 +14,21 @@ env/
 
 # Data
 # Bỏ qua dữ liệu thực tế (để tránh push file quá nặng hoặc nhạy cảm lên Git)
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-*.log
+# data/raw/*
+# !data/raw/.gitkeep
+# data/processed/*
+# !data/processed/.gitkeep
+# *.log
 *.parquet
 *.db
 *.sqlite
 
 # Models
 # Bỏ qua các file mô hình Machine Learning đã train (thường có kích thước lớn)
-models/*
-!models/.gitkeep
-*.pkl
-*.joblib
+# models/*
+# !models/.gitkeep
+# *.pkl
+# *.joblib
 *.h5
 *.pt
 *.onnx
