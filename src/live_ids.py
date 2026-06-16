@@ -11,6 +11,7 @@ Based on live_demo_spec.md — demo variant of the offline pipeline.
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 import json
@@ -37,6 +38,18 @@ except ImportError:
             print(*args)
         def bell(self):
             print("\a", end="")
+
+
+# Determine if terminal stdout encoding supports emojis safely
+def _can_encode_emojis() -> bool:
+    try:
+        "🔴".encode(sys.stdout.encoding or "utf-8")
+        "⚠️".encode(sys.stdout.encoding or "utf-8")
+        return True
+    except Exception:
+        return False
+
+USE_EMOJI = _can_encode_emojis()
 
 
 # ---- Demo config (different from offline research config) ----
@@ -176,26 +189,51 @@ def emit_alert(alert: dict, console: Console, csv_writer, jsonl_fh, fieldnames):
     ts_str = datetime.fromtimestamp(alert["ts_alert"]).strftime("%H:%M:%S")
 
     if alert["alert_kind"] == "EARLY_ALERT":
-        console.print(
-            f"[{ts_str}] ⚠️  EARLY_ALERT [{alert['alert_subtype']}] "
-            f"IP={alert['ip']} attempt#{alert['event_index']} — {alert['reason']}",
-            style="bold yellow",
+        if USE_EMOJI:
+            try:
+                console.print(
+                    f"[{ts_str}] ⚠️  EARLY_ALERT [{alert['alert_subtype']}] "
+                    f"IP={alert['ip']} attempt#{alert['event_index']} — {alert['reason']}",
+                    style="bold yellow",
+                )
+                return
+            except Exception:
+                pass
+        print(
+            f"[{ts_str}] [!] EARLY_ALERT [{alert['alert_subtype']}] "
+            f"IP={alert['ip']} attempt#{alert['event_index']} - {alert['reason']}"
         )
     else:
         atype = alert["alert_type"]
-        style, icon = {
-            "KNOWN_ATTACK":    ("bold red",     "🔴"),
-            "UNKNOWN_PATTERN": ("bold magenta", "🟣"),
-            "NORMAL":          ("bold green",   "🟢"),
+        if USE_EMOJI:
+            try:
+                style, icon = {
+                    "KNOWN_ATTACK":    ("bold red",     "🔴"),
+                    "UNKNOWN_PATTERN": ("bold magenta", "🟣"),
+                    "NORMAL":          ("bold green",   "🟢"),
+                }[atype]
+                console.print(
+                    f"[{ts_str}] {icon} FINAL [{atype}] {alert['layer1_label']} "
+                    f"IP={alert['ip']} attempts={alert['total_attempts']} "
+                    f"dur={alert['session_duration']}s IF_score={alert['layer2_score']}",
+                    style=style,
+                )
+                if alert.get("layer1_class") in (3, 4):  # Brute-force or Break-in
+                    console.bell()
+                return
+            except Exception:
+                pass
+        
+        ascii_icon = {
+            "KNOWN_ATTACK":    "[CRIT]",
+            "UNKNOWN_PATTERN": "[WARN]",
+            "NORMAL":          "[ OK ]",
         }[atype]
-        console.print(
-            f"[{ts_str}] {icon} FINAL [{atype}] {alert['layer1_label']} "
+        print(
+            f"[{ts_str}] {ascii_icon} FINAL [{atype}] {alert['layer1_label']} "
             f"IP={alert['ip']} attempts={alert['total_attempts']} "
-            f"dur={alert['session_duration']}s IF_score={alert['layer2_score']}",
-            style=style,
+            f"dur={alert['session_duration']}s IF_score={alert['layer2_score']}"
         )
-        if alert.get("layer1_class") in (3, 4):  # Brute-force or Break-in
-            console.bell()
 
     # Structured logging — for post-analysis / downstream tools
     row = {k: alert.get(k, "") for k in fieldnames}
@@ -208,27 +246,51 @@ def emit_alert(alert: dict, console: Console, csv_writer, jsonl_fh, fieldnames):
 # Thread 1 — Log Tailer (blocking I/O)
 # ---------------------------------------------------------------------------
 
-def tail_f(path: str):
-    """Generator that yields new lines from a file, similar to `tail -f`."""
-    with open(path, "r") as f:
-        f.seek(0, 2)  # seek to END — only process NEW log lines from start
+def tail_f(path: str, read_all: bool = False, caught_up_event: Optional[threading.Event] = None):
+    """Generator that yields new lines from a file, similar to `tail -f`.
+    
+    If read_all is True, reads from the beginning of the file.
+    Triggers caught_up_event when the end of the file is first reached.
+    """
+    with open(path, "r", errors="ignore") as f:
+        if not read_all:
+            f.seek(0, 2)  # seek to END — only process NEW log lines from start
+            if caught_up_event:
+                caught_up_event.set()
+        
+        has_set_caught_up = False if read_all else True
+        
         while True:
             line = f.readline()
             if not line:
+                if not has_set_caught_up:
+                    has_set_caught_up = True
+                    if caught_up_event:
+                        caught_up_event.set()
                 time.sleep(0.2)
                 continue
             yield line
 
 
-def tailer_thread(stop_event, parser, buffer, early_engine, rf_model, iso_model,
+def tailer_thread(stop_event, caught_up_event, log_file, read_all, verbose, parser, buffer, early_engine, rf_model, iso_model,
                    console, csv_writer, jsonl_fh, fieldnames):
     """Thread 1: reads new log lines, updates buffer, checks early alerts."""
-    for line in tail_f(AUTH_LOG):
+    for line in tail_f(log_file, read_all=read_all, caught_up_event=caught_up_event):
         if stop_event.is_set():
             break
-        record = parser.parse_line(line.strip())
+        
+        stripped = line.strip()
+        if verbose:
+            console.print(f"[DEBUG] Raw line read: {stripped}", style="dim yellow")
+            
+        record = parser.parse_line(stripped)
         if record is None:
+            if verbose and "sshd" in stripped:
+                console.print(f"[DEBUG] Line matched 'sshd' but failed to parse: {stripped}", style="dim")
             continue
+
+        if verbose:
+            console.print(f"[DEBUG] Parsed record: {record}", style="dim green")
 
         closed_state, current_state = buffer.add_event(record)
 
@@ -246,8 +308,11 @@ def tailer_thread(stop_event, parser, buffer, early_engine, rf_model, iso_model,
 # Thread 2 — Timeout Poller
 # ---------------------------------------------------------------------------
 
-def poller_thread(stop_event, buffer, rf_model, iso_model, console, csv_writer, jsonl_fh, fieldnames):
+def poller_thread(stop_event, caught_up_event, buffer, rf_model, iso_model, console, csv_writer, jsonl_fh, fieldnames):
     """Thread 2: periodically sweeps for expired sessions and classifies them."""
+    # Wait until the tailer thread has caught up to the live stream
+    caught_up_event.wait()
+    
     while not stop_event.is_set():
         time.sleep(POLL_EVERY)
         now_ts = int(time.time())
@@ -262,9 +327,21 @@ def poller_thread(stop_event, buffer, rf_model, iso_model, console, csv_writer, 
 # ---------------------------------------------------------------------------
 
 def main():
+    import argparse
+    
+    parser_arg = argparse.ArgumentParser(description="Live SSH Intrusion Detection System — real-time daemon.")
+    parser_arg.add_argument("--read-all", action="store_true", help="Read auth.log from the beginning instead of tailing new lines.")
+    parser_arg.add_argument("--verbose", action="store_true", help="Print debug/verbose log statements.")
+    parser_arg.add_argument("--log-file", type=str, default=AUTH_LOG, help=f"Path to authentication log (default: {AUTH_LOG}).")
+    parser_arg.add_argument("--idle-gap", type=int, default=IDLE_GAP, help=f"Session idle gap in seconds (default: {IDLE_GAP}).")
+    parser_arg.add_argument("--valid-users", type=str, default="alice", help="Comma-separated list of valid SSH users.")
+    args = parser_arg.parse_args()
+
     console = Console()
-    parser  = SSHLogParser(valid_users=DEMO_VALID_USERS, year=datetime.now().year)
-    buffer  = LiveSessionBuffer(idle_gap=IDLE_GAP)
+    
+    valid_users = set(args.valid_users.split(","))
+    parser  = SSHLogParser(valid_users=valid_users, year=datetime.now().year)
+    buffer  = LiveSessionBuffer(idle_gap=args.idle_gap)
     early_engine = EarlyAlertEngine()
 
     rf_model  = joblib.load("models/best_model.pkl")
@@ -283,15 +360,17 @@ def main():
     jsonl_fh = open(OUT_JSONL, "w")
 
     stop_event = threading.Event()
+    caught_up_event = threading.Event()
 
-    console.print(f"[bold cyan]Live IDS started — watching {AUTH_LOG}[/bold cyan]")
-    console.print(f"[bold cyan]IDLE_GAP={IDLE_GAP}s (demo) | valid_users={DEMO_VALID_USERS}[/bold cyan]\n")
+    console.print(f"[bold cyan]Live IDS started — watching {args.log_file}[/bold cyan]")
+    console.print(f"[bold cyan]args: read_all={args.read_all} | verbose={args.verbose} | idle_gap={args.idle_gap}s | valid_users={valid_users}[/bold cyan]\n")
 
     t1 = threading.Thread(target=tailer_thread, args=(
-        stop_event, parser, buffer, early_engine, rf_model, iso_model,
+        stop_event, caught_up_event, args.log_file, args.read_all, args.verbose,
+        parser, buffer, early_engine, rf_model, iso_model,
         console, csv_writer, jsonl_fh, fieldnames), daemon=True)
     t2 = threading.Thread(target=poller_thread, args=(
-        stop_event, buffer, rf_model, iso_model,
+        stop_event, caught_up_event, buffer, rf_model, iso_model,
         console, csv_writer, jsonl_fh, fieldnames), daemon=True)
 
     t1.start()
@@ -303,6 +382,8 @@ def main():
     except KeyboardInterrupt:
         console.print("\n[bold cyan]Shutting down...[/bold cyan]")
         stop_event.set()
+        # Wake up the poller if it's waiting
+        caught_up_event.set()
 
         # Flush remaining open sessions
         for state in buffer.flush():
